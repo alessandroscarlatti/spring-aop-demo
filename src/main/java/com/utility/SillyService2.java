@@ -10,10 +10,12 @@ import org.springframework.stereotype.Component;
  * Saturday, 5/12/2018
  */
 @Component
-public class SillyService {
+public class SillyService2 extends SillyService {
 
+    // must annotate this method
+    // since annotations are NOT inherited.
     @Record
     public String tellAJoke(String name) {
-        return "Here's a joke named " + name;
+        return "Here's a joke named for " + name;
     }
 }

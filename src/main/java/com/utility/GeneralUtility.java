@@ -15,9 +15,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class GeneralUtility implements CommandLineRunner {
 
     private SillyService sillyService;
+    private SillyService2 sillyService2;
 
-    public GeneralUtility(SillyService sillyService) {
+    public GeneralUtility(SillyService sillyService, SillyService2 sillyService2) {
         this.sillyService = sillyService;
+        this.sillyService2 = sillyService2;
     }
 
     @Time
@@ -25,7 +27,7 @@ public class GeneralUtility implements CommandLineRunner {
     public void run(String... args) throws Exception {
         System.out.println("hello Spring Boot3!");
         System.out.println(sillyService.tellAJoke("what"));
-
+        System.out.println(sillyService2.tellAJoke("what2"));
 
 //        System.out.println("stdin is " + System.in);
 //        Scanner scanner = new Scanner(System.in);
