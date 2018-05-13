@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 public class SillyService2 extends SillyService {
 
     // must annotate this method
-    // since annotations are NOT inherited.
+    // since annotations are NOT inherited for methods.
     @Record
     public String tellAJoke(String name) {
         return "Here's a joke named for " + name;
