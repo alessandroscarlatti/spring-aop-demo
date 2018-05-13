@@ -1,0 +1,138 @@
+import edu.sc.seis.launch4j.tasks.Launch4jLibraryTask
+
+import java.nio.file.Paths
+import java.time.LocalDate
+import java.util.stream.Collectors
+
+//=====================================================================================================================
+// Distribution task configurations...
+//=====================================================================================================================
+
+buildscript {
+
+    println Paths.get(project.projectDir.absolutePath, 'libs').toString()
+
+    repositories {
+        jcenter()
+        flatDir dirs: Paths.get(project.projectDir.absolutePath, 'libs').toString()
+    }
+
+    dependencies {
+        classpath 'edu.sc.seis.gradle:launch4j:2.4.2'
+        classpath "com.utility:utility-distribution:+"
+    }
+}
+
+ext {
+    exeClasspath = sourceSets.main.runtimeClasspath
+    exeMainClassName = findProperty("mainClassName")
+}
+
+/**
+ * Run this utility as if from the exe.
+ */
+task runUtility(type: JavaExec, group: 'application', description: 'Run this utility.') {
+    classpath = exeClasspath
+    main = findProperty("mainClassName")
+    args = []
+    standardInput = System.in
+}
+
+/**
+ * Verify that the main class is available in the classpath.
+ */
+task verifyUtilityMainClass(group: 'verification', description: 'Verify that the expected main class exists.') {
+
+    if (exeMainClassName == null || exeMainClassName.trim().isEmpty()) {
+        enabled = false
+    }
+
+    doLast {
+        List<URL> urls = sourceSets.main.runtimeClasspath.toList().stream().map({ file -> file.toURI().toURL() }).collect(Collectors.toList())
+        URLClassLoader classLoader = new URLClassLoader((URL[]) urls.toArray())
+        try {
+            Class.forName(exeMainClassName, false, classLoader)
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException("Main class does not exist. Was expecting ${exeMainClassName}. Consider defining a main class: ${exeMainClassName}", e)
+        }
+    }
+}
+build.dependsOn verifyUtilityMainClass
+
+apply plugin: edu.sc.seis.launch4j.Launch4jPlugin
+apply plugin: com.scarlatti.distribution.Launch4jHelperPlugin
+
+String interpretArchiveName() {
+    String workingArchiveName = findProperty("archiveName")
+    workingArchiveName = workingArchiveName.replace('${version}', version)
+    if (!workingArchiveName.endsWith(".zip")) {
+        workingArchiveName = workingArchiveName + ".zip"
+    }
+
+    return workingArchiveName
+}
+
+String interpretExeName() {
+    String workingExeName = findProperty("exeName")
+    workingExeName = workingExeName.replace('${version}', version)
+    if (!workingExeName.endsWith(".exe")) {
+        workingExeName = workingExeName + ".exe"
+    }
+
+    return workingExeName
+}
+
+String interpretCopyright() {
+    String workingCopyright = findProperty("copyright")
+    workingCopyright = workingCopyright.replace('${year}', String.valueOf(LocalDate.now().year))
+    workingCopyright = workingCopyright.replace('${month}', String.valueOf(LocalDate.now().month))
+
+    return workingCopyright
+}
+
+task standardDistributionBuildExe(type: Launch4jLibraryTask) {
+    group = 'distribution'
+    description = 'Build the distribution archive for this utility.'
+
+    if (exeMainClassName != null && !exeMainClassName.trim().isEmpty()) {
+        mainClassName = exeMainClassName
+    }
+
+    productName = findProperty("productName")
+    outfile = interpretExeName()
+    copyright = interpretCopyright()
+    fileDescription = findProperty("exeDescription")
+    headerType = findProperty("exeHeaderType")
+    windowTitle = findProperty("productName")
+    supportUrl = findProperty("supportUrl")
+    stayAlive = true
+    errTitle = findProperty("productName")
+    copyConfigurable = project.tasks.jar.outputs.files
+}
+
+launch4jHelper.with(standardDistributionBuildExe).configure {
+    resourcesDir = 'distributionResources/standard'
+    outputDir = 'launch4j/standardDistribution'
+}
+
+task standardDistributionExe(type: Copy) {
+    dependsOn = [standardDistributionBuildExe]
+    group = 'distribution'
+    description = 'Put the standalone exe in the distribution dir.'
+    from file("${project.buildDir}/${standardDistributionBuildExe.outputDir}/${standardDistributionBuildExe.outfile}")
+    destinationDir = file("${project.buildDir}/distributions/standard")
+}
+
+task standardDistributionZip(type: Zip) {
+    group = 'distribution'
+    description = 'Put the standalone exe zip in the distribution dir.'
+    from file("${project.buildDir}/${standardDistributionBuildExe.outputDir}/${standardDistributionBuildExe.outfile}")
+    archiveName = interpretArchiveName()
+    destinationDir = file("${project.buildDir}/distributions/standard")
+}
+
+task standardDistributionAssemble {
+    dependsOn = [standardDistributionExe, standardDistributionZip]
+    group = 'distribution'
+    description = 'Assemble the entire standard distribution materials into the distributions dir'
+}
